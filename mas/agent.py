@@ -35,13 +35,14 @@ class Agent:
     def _llm_response(self, task: str, incoming_messages: List[str]) -> str:
         system = SYSTEM_PROMPTS[self.config.role]
         user = self._build_user_message(task, incoming_messages)
+        temperature = 1 if 'nano' in self.config.model else 0
         response = self._client.chat.completions.create(
             model=self.config.model,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            temperature=0,
+            temperature=temperature,
         )
         return response.choices[0].message.content
 

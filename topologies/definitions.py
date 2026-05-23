@@ -214,8 +214,8 @@ HYBRID_ROLES: Dict[str, Dict[str, str]] = {
 def get_all_topologies() -> Dict[str, nx.DiGraph]:
     """
     Returns all 18 topologies:
-      Parametric: chain/star/fc × n in {3,4,5} → 12
-      Hybrid: 6
+      Parametric: chain/star/fc/hierarchical/two_layer_ensemble × n in {3,4,5} → 15
+      Hybrid: 8
     All validated as DAGs with full reachability from 'task'.
     """
     topos: Dict[str, nx.DiGraph] = {}
@@ -227,6 +227,7 @@ def get_all_topologies() -> Dict[str, nx.DiGraph]:
         topos[f"hierarchical_{n}"] = hierarchical(n)
         topos[f"two_layer_ensemble_{n}"] = two_layer_ensemble(n)
 
+    topos["one_node"]                 = chain(1)
     topos["star_then_chain"]          = star_then_chain()
     topos["chain_with_star_sink"]     = chain_with_star_sink()
     topos["fc_then_sink"]             = fc_then_sink()
@@ -247,9 +248,10 @@ def get_all_topologies() -> Dict[str, nx.DiGraph]:
     return topos
 
 
-def get_few_topologies(n_agents: int = 3) -> Dict[str, nx.DiGraph]:
+def get_topologies(n_agents: int = 3) -> Dict[str, nx.DiGraph]:
     """Original 4 topologies — kept for backward compatibility with run_poc.py."""
     return {
+        "one_node":  chain(1),
         "chain":  chain(n_agents),
         "star":   star(n_agents),
         "full":   fc(n_agents),

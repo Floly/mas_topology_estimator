@@ -2,4 +2,5 @@
 .claude/
 CLAUDE.md
 
-**__pycache__/**
+**/__pycache__/**
+results/*
