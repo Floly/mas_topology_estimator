@@ -1,7 +1,7 @@
 [
   {
     "topology": "chain",
-    "accuracy": 0.2,
+    "accuracy": 0.4,
     "metrics": {
       "diameter": 1.6666666666666667,
       "avg_degree": 0.75,
@@ -12,7 +12,7 @@
   },
   {
     "topology": "star",
-    "accuracy": 0.2,
+    "accuracy": 0.6,
     "metrics": {
       "diameter": 1.4,
       "avg_degree": 1.2,
@@ -23,7 +23,7 @@
   },
   {
     "topology": "full",
-    "accuracy": 0.2,
+    "accuracy": 0.6,
     "metrics": {
       "diameter": 1.0,
       "avg_degree": 1.5,
@@ -34,7 +34,7 @@
   },
   {
     "topology": "random",
-    "accuracy": 0.2,
+    "accuracy": 0.6,
     "metrics": {
       "diameter": 1.1666666666666667,
       "avg_degree": 1.25,
