@@ -18,6 +18,21 @@ SYSTEM_PROMPTS = {
         "pick the most likely correct answer. "
         "End your response with: ANSWER: <number>"
     ),
+    "manager": (
+        "You are a manager. Read the problem carefully and outline "
+        "a clear solution strategy for your team. "
+        "End your response with: ANSWER: <number>"
+    ),
+    "debater": (
+        "You are a debater. Solve the problem independently, "
+        "without being influenced by other agents. "
+        "End your response with: ANSWER: <number>"
+    ),
+    "judge": (
+        "You are a judge. Given several solutions, evaluate each "
+        "and pick the most likely correct answer. "
+        "End your response with: ANSWER: <number>"
+    ),
 }
 
 
