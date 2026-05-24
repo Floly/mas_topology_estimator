@@ -228,6 +228,8 @@ def main():
                 "structural_entropy": metrics.structural_entropy,
                 "spectral_gap":       metrics.spectral_gap,
                 "task_centrality":    metrics.task_centrality,
+                "flow_entropy":       metrics.flow_entropy,
+                "von_neumann_entropy": metrics.von_neumann_entropy,
             },
         })
 

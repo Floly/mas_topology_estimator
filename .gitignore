@@ -1,5 +1,6 @@
 .env
 .claude/
+*.out
 CLAUDE.md
 
 **/__pycache__/**
