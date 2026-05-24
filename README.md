@@ -133,7 +133,7 @@ Roles are assigned by topological position (first = solver, middle = critic, las
 | `20260524_075933` | gpt-3.5-turbo | GSM8K | 20 | 18 | 0.242 | pipeline_with_critic (0.40) | 0.16 |
 | `20260524_050322` | gpt-4o-mini | math500 | 20 | 18 | 0.456 | fc_then_sink / debate (0.55) | — |
 
-Neither run shows meaningful metric–accuracy correlation. Ranking of topologies inverts between models. N=20 is insufficient — 95% CI ≈ ±11 pp while the full accuracy range is 15 pp. See [poc_results.md](./poc_results.md) for full analysis.
+Neither run shows meaningful metric–accuracy correlation. Ranking of topologies inverts between models. N=20 is insufficient — 95% CI ≈ ±11 pp while the full accuracy range is 15 pp.
 
 ## Output
 
