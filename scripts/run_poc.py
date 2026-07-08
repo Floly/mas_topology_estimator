@@ -36,11 +36,23 @@ from metrics.graph_metrics import TopologyMetrics
 # Dataset loading
 # ─────────────────────────────────────────────────────────────────────────────
 
-def load_questions(dataset: str, n: int) -> list:
+def _parse_level(level) -> int:
+    """Normalize MATH-500 level field (int, str digit, or 'Level N') to int."""
+    if isinstance(level, int):
+        return level
+    s = str(level).strip()
+    if s.isdigit():
+        return int(s)
+    m = re.search(r"\d+", s)
+    return int(m.group()) if m else -1
+
+
+def load_questions(dataset: str, n: int, levels: set | None = None) -> list:
     """
     Returns list of {"question": str, "answer": str}.
     answer is always a plain string (integer text for GSM8K,
     possibly LaTeX expression for MATH-500).
+    levels: set of ints for math500 level filter (None = no filter).
     """
     if dataset == "gsm8k":
         try:
@@ -61,7 +73,11 @@ def load_questions(dataset: str, n: int) -> list:
         ]
 
     if dataset == "math500":
-        ds = load_dataset("HuggingFaceH4/MATH-500", split=f"test[:{n}]")
+        ds = load_dataset("HuggingFaceH4/MATH-500", split="test")
+        items = list(ds)
+        if levels:
+            items = [item for item in items if _parse_level(item.get("level")) in levels]
+        items = items[:n]
         return [
             {
                 "question": item["problem"],
@@ -69,10 +85,28 @@ def load_questions(dataset: str, n: int) -> list:
                 "subject":  item.get("subject", ""),
                 "level":    item.get("level", ""),
             }
-            for item in ds
+            for item in items
         ]
 
-    raise ValueError(f"Unknown dataset: {dataset!r}. Choose 'gsm8k' or 'math500'.")
+    if dataset == "bbh_logic":
+        items = []
+        try:
+            ds5 = load_dataset("lukaemon/bbh", "logical_deduction_five_objects", split="test")
+            items = list(ds5)
+        except Exception:
+            pass
+        if len(items) < n:
+            try:
+                ds3 = load_dataset("lukaemon/bbh", "logical_deduction_three_objects", split="test")
+                items += list(ds3)[: n - len(items)]
+            except Exception:
+                pass
+        return [
+            {"question": item["input"], "answer": item["target"]}
+            for item in items[:n]
+        ]
+
+    raise ValueError(f"Unknown dataset: {dataset!r}. Choose 'gsm8k', 'math500', or 'bbh_logic'.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -104,10 +138,22 @@ def _to_float(s: str):
         return None
 
 
+def _extract_letter(s: str):
+    """Return lowercased letter from '(C)' patterns, or None."""
+    m = re.search(r"\(([A-Za-z])\)", s)
+    return m.group(1).lower() if m else None
+
+
 def answers_match(pred_raw: str, gt: str) -> bool:
     """Compare model answer string to ground-truth string."""
     if pred_raw is None:
         return False
+    # letter-option matching for BBH-style answers like (C)
+    pl = _extract_letter(pred_raw)
+    gl = _extract_letter(gt)
+    if pl is not None and gl is not None:
+        return pl == gl
+    # numeric / LaTeX path (unchanged)
     p = _normalize(pred_raw)
     g = _normalize(gt)
     if p == g:
@@ -175,18 +221,21 @@ def main():
     parser.add_argument("--model",          default="gpt-3.5-turbo")
     parser.add_argument("--n-questions",    type=int, default=20)
     parser.add_argument("--dataset",        default="gsm8k",
-                        choices=["gsm8k", "math500"],
+                        choices=["gsm8k", "math500", "bbh_logic"],
                         help="Dataset to evaluate on")
+    parser.add_argument("--levels",         default="4,5",
+                        help="Comma-separated MATH-500 difficulty levels to keep (default: 4,5)")
     parser.add_argument("--stub",           action="store_true")
     parser.add_argument("--all-topologies", action="store_true")
     args = parser.parse_args()
+    levels = {int(l) for l in args.levels.split(",") if l.strip()} if args.dataset == "math500" else None
 
     run_ts  = datetime.now(timezone.utc)
     run_id  = run_ts.strftime("%Y%m%d_%H%M%S")
 
     print(f"Run ID  : {run_id}")
     print(f"Dataset : {args.dataset}  ({args.n_questions} questions)")
-    questions = load_questions(args.dataset, args.n_questions)
+    questions = load_questions(args.dataset, args.n_questions, levels=levels)
     print(f"Loaded  : {len(questions)} questions")
     print(f"Example : {questions[0]['question'][:80]}...")
     print(f"GT      : {questions[0]['answer']}")
@@ -246,6 +295,7 @@ def main():
             "timestamp":      run_ts.isoformat(),
             "model":          args.model,
             "dataset":        args.dataset,
+            "levels":         args.levels if args.dataset == "math500" else None,
             "n_questions":    len(questions),
             "stub":           args.stub,
             "all_topologies": args.all_topologies,
