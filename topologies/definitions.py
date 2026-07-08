@@ -1,5 +1,5 @@
 import networkx as nx
-from typing import Dict, List
+from typing import Dict, List, Set
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -216,6 +216,44 @@ def get_all_topologies() -> Dict[str, nx.DiGraph]:
     topos["debate"]                   = debate()
     topos["pipeline_with_critic"]     = pipeline_with_critic()
 
+    # ── Erdős-Rényi DAGs (~10) ──────────────────────────────────────────
+    _er: list = [
+        (3, 0.4, 1), (3, 0.4, 2), (3, 0.6, 1), (3, 0.6, 2),
+        (5, 0.3, 1), (5, 0.3, 2), (5, 0.5, 1), (5, 0.5, 2),
+        (7, 0.4, 1), (7, 0.4, 2),
+    ]
+    for n, p, s in _er:
+        pstr = str(int(p * 10)).zfill(2)
+        name = f"er_{n}_p{pstr}_s{s}"
+        topos[name] = erdos_renyi_dag(n, p, s)
+
+    # ── Barabási-Albert DAGs (~10) ───────────────────────────────────────
+    _ba: list = [
+        (3, 1, 1), (3, 1, 2), (3, 2, 1),
+        (5, 1, 1), (5, 1, 2), (5, 2, 1), (5, 2, 2),
+        (7, 1, 1), (7, 2, 1), (7, 3, 1),
+    ]
+    for n, m, s in _ba:
+        name = f"ba_{n}_m{m}_s{s}"
+        topos[name] = barabasi_albert_dag(n, m, s)
+
+    # ── Watts-Strogatz DAGs (~10) ────────────────────────────────────────
+    _ws: list = [
+        (3, 2, 0.3, 1), (3, 2, 0.5, 1), (3, 2, 0.3, 2),
+        (5, 2, 0.3, 1), (5, 2, 0.5, 1), (5, 4, 0.3, 1), (5, 4, 0.5, 1),
+        (7, 2, 0.3, 1), (7, 4, 0.3, 1), (7, 6, 0.3, 1),
+    ]
+    for n, k, beta, s in _ws:
+        bstr = str(int(beta * 10)).zfill(2)
+        name = f"ws_{n}_k{k}_b{bstr}_s{s}"
+        topos[name] = watts_strogatz_dag(n, k, beta, s)
+
+    # track random topo names for structural role assignment in build_agents
+    RANDOM_TOPO_NAMES.update(
+        n for n in topos
+        if n.startswith(("er_", "ba_", "ws_"))
+    )
+
     for name, G in topos.items():
         assert nx.is_directed_acyclic_graph(G), f"{name} is not a DAG"
         assert len(_sinks(G)) == 1, f"{name} has {len(_sinks(G))} sinks: {_sinks(G)}"
@@ -240,6 +278,58 @@ def get_topologies(n_agents: int = 3) -> Dict[str, nx.DiGraph]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Private helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Random-graph DAG generators
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _orient_dag(undirected_G: nx.Graph, n: int) -> nx.DiGraph:
+    """Orient undirected graph low→high node index, rename 0..n-1 → A0..An-1,
+    add task→sources, ensure single sink."""
+    agents = [f"A{i}" for i in range(n)]
+    G = nx.DiGraph()
+    G.add_nodes_from(["task"] + agents)
+    for u, v in undirected_G.edges():
+        if u != v:  # skip self-loops
+            lo, hi = (u, v) if u < v else (v, u)
+            G.add_edge(agents[lo], agents[hi])
+    # task feeds every source agent (no incoming edges from other agents)
+    for a in agents:
+        if G.in_degree(a) == 0:
+            G.add_edge("task", a)
+    return _ensure_single_sink(G)
+
+
+def erdos_renyi_dag(n: int, p: float, seed: int) -> nx.DiGraph:
+    return _orient_dag(nx.erdos_renyi_graph(n, p, seed=seed), n)
+
+
+def barabasi_albert_dag(n: int, m: int, seed: int) -> nx.DiGraph:
+    return _orient_dag(nx.barabasi_albert_graph(n, m, seed=seed), n)
+
+
+def watts_strogatz_dag(n: int, k: int, beta: float, seed: int) -> nx.DiGraph:
+    return _orient_dag(nx.watts_strogatz_graph(n, k, beta, seed=seed), n)
+
+
+def structural_roles(graph: nx.DiGraph) -> Dict[str, str]:
+    """Assign roles by structural position: sources→solver, sinks→aggregator, internal→critic."""
+    roles: Dict[str, str] = {}
+    for node in graph.nodes:
+        if node == "task":
+            continue
+        if graph.out_degree(node) == 0:
+            roles[node] = "aggregator"
+        elif all(p == "task" for p in graph.predecessors(node)):
+            roles[node] = "solver"
+        else:
+            roles[node] = "critic"
+    return roles
+
+
+# Names of all random-graph topologies (populated by get_all_topologies)
+RANDOM_TOPO_NAMES: Set[str] = set()
+
 
 def _random(n: int, seed: int = 42) -> nx.DiGraph:
     import random as _rnd
