@@ -1,3 +1,4 @@
+import os
 import re
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -11,14 +12,21 @@ class AgentConfig:
     role: str
     model: str = "gpt-3.5-turbo"
     stub: bool = False  # if True, returns a deterministic fake answer without API calls
+    base_url: Optional[str] = None
+    api_key_env: str = "OPENAI_API_KEY"
+    temperature: Optional[float] = None
 
 
 class Agent:
     def __init__(self, config: AgentConfig):
         self.config = config
+        self.total_tokens: int = 0
         if not config.stub:
             import openai  # imported lazily so stubs work without the package
-            self._client = openai.OpenAI()
+            self._client = openai.OpenAI(
+                base_url=config.base_url,
+                api_key=os.environ.get(config.api_key_env),
+            )
 
     def run(self, task: str, incoming_messages: List[str]) -> str:
         if self.config.stub:
@@ -35,7 +43,10 @@ class Agent:
     def _llm_response(self, task: str, incoming_messages: List[str]) -> str:
         system = SYSTEM_PROMPTS[self.config.role]
         user = self._build_user_message(task, incoming_messages)
-        temperature = 1 if 'nano' in self.config.model else 0
+        if self.config.temperature is not None:
+            temperature = self.config.temperature
+        else:
+            temperature = 1 if 'nano' in self.config.model else 0
         response = self._client.chat.completions.create(
             model=self.config.model,
             messages=[
@@ -44,6 +55,8 @@ class Agent:
             ],
             temperature=temperature,
         )
+        if response.usage:
+            self.total_tokens += response.usage.prompt_tokens + response.usage.completion_tokens
         return response.choices[0].message.content
 
     def _stub_response(self, task: str, incoming_messages: List[str]) -> str:
