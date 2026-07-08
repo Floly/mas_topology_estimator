@@ -137,7 +137,15 @@ def _infer_role(node: str, index: int) -> str:
     return _ROLES_CYCLE[index % len(_ROLES_CYCLE)]
 
 
-def build_agents(graph: nx.DiGraph, topo_name: str, model: str, stub: bool) -> dict:
+def build_agents(
+    graph: nx.DiGraph,
+    topo_name: str,
+    model: str,
+    stub: bool,
+    base_url: str | None = None,
+    api_key_env: str = "OPENAI_API_KEY",
+    temperature: float | None = None,
+) -> dict:
     order      = [n for n in nx.topological_sort(graph) if n != "task"]
     hybrid_map = HYBRID_ROLES.get(topo_name, {})
     return {
@@ -146,6 +154,9 @@ def build_agents(graph: nx.DiGraph, topo_name: str, model: str, stub: bool) -> d
             role=hybrid_map.get(node) or _infer_role(node, order.index(node)),
             model=model,
             stub=stub,
+            base_url=base_url,
+            api_key_env=api_key_env,
+            temperature=temperature,
         ))
         for node in order
     }
@@ -179,6 +190,12 @@ def main():
                         help="Dataset to evaluate on")
     parser.add_argument("--stub",           action="store_true")
     parser.add_argument("--all-topologies", action="store_true")
+    parser.add_argument("--base-url",       default=None,
+                        help="OpenAI-compatible API base URL")
+    parser.add_argument("--api-key-env",    default="OPENAI_API_KEY",
+                        help="Env var name holding the API key")
+    parser.add_argument("--temperature",    type=float, default=None,
+                        help="Override model temperature")
     args = parser.parse_args()
 
     run_ts  = datetime.now(timezone.utc)
@@ -201,13 +218,20 @@ def main():
 
     for topo_name, graph in topologies.items():
         topo_t0 = time.perf_counter()
-        agents  = build_agents(graph, topo_name, args.model, args.stub)
+        agents  = build_agents(
+            graph, topo_name, args.model, args.stub,
+            base_url=args.base_url,
+            api_key_env=args.api_key_env,
+            temperature=args.temperature,
+        )
         runner  = MASRunner(graph, agents)
         metrics = metrics_engine.compute(graph, topo_name)
 
         correct = 0
+        run_tokens = 0
         for i, item in enumerate(questions):
-            out  = runner.run(item["question"])
+            out, q_tokens = runner.run(item["question"])
+            run_tokens += q_tokens
             pred = parse_answer_str(out)
             if answers_match(pred, item["answer"]):
                 correct += 1
@@ -216,12 +240,15 @@ def main():
 
         topo_sec = round(time.perf_counter() - topo_t0, 2)
         accuracy = correct / len(questions)
-        print(f"{topo_name:30s}  acc={accuracy:.2f}  ({correct}/{len(questions)})  {topo_sec}s")
+        acc_per_1k = round(accuracy / (run_tokens / 1000), 6) if run_tokens > 0 else None
+        print(f"{topo_name:30s}  acc={accuracy:.2f}  ({correct}/{len(questions)})  tokens={run_tokens}  {topo_sec}s")
 
         results.append({
-            "topology":     topo_name,
-            "accuracy":     accuracy,
-            "duration_sec": topo_sec,
+            "topology":              topo_name,
+            "accuracy":              accuracy,
+            "total_tokens":          run_tokens,
+            "accuracy_per_1k_tokens": acc_per_1k,
+            "duration_sec":          topo_sec,
             "metrics": {
                 "diameter":           metrics.diameter,
                 "avg_degree":         metrics.avg_degree,
@@ -245,6 +272,8 @@ def main():
             "run_id":         run_id,
             "timestamp":      run_ts.isoformat(),
             "model":          args.model,
+            "base_url":       args.base_url,
+            "api_key_env":    args.api_key_env,
             "dataset":        args.dataset,
             "n_questions":    len(questions),
             "stub":           args.stub,
