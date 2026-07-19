@@ -1,3 +1,4 @@
+from itertools import combinations
 import networkx as nx
 from typing import Dict, List, Set
 
@@ -217,8 +218,10 @@ def get_all_topologies() -> Dict[str, nx.DiGraph]:
     topos["pipeline_with_critic"]     = pipeline_with_critic()
 
     # ── Erdős-Rényi DAGs (~10) ──────────────────────────────────────────
+    # Seeds chosen so every member is non-isomorphic within the family
+    # (n=3 graphs collapse to few shapes; some default seeds coincided).
     _er: list = [
-        (3, 0.4, 1), (3, 0.4, 2), (3, 0.6, 1), (3, 0.6, 2),
+        (3, 0.4, 1), (3, 0.4, 3), (3, 0.6, 3), (3, 0.6, 5),
         (5, 0.3, 1), (5, 0.3, 2), (5, 0.5, 1), (5, 0.5, 2),
         (7, 0.4, 1), (7, 0.4, 2),
     ]
@@ -228,9 +231,11 @@ def get_all_topologies() -> Dict[str, nx.DiGraph]:
         topos[name] = erdos_renyi_dag(n, p, s)
 
     # ── Barabási-Albert DAGs (~10) ───────────────────────────────────────
+    # n=3,m=2 always yields a K3 triangle regardless of seed (m=n-1 forces
+    # every node to attach to both others) — swapped for n=4,m=2 instead.
     _ba: list = [
-        (3, 1, 1), (3, 1, 2), (3, 2, 1),
-        (5, 1, 1), (5, 1, 2), (5, 2, 1), (5, 2, 2),
+        (3, 1, 1), (3, 1, 5), (4, 2, 1),
+        (5, 1, 1), (5, 1, 3), (5, 2, 1), (5, 2, 2),
         (7, 1, 1), (7, 2, 1), (7, 3, 1),
     ]
     for n, m, s in _ba:
@@ -238,9 +243,12 @@ def get_all_topologies() -> Dict[str, nx.DiGraph]:
         topos[name] = barabasi_albert_dag(n, m, s)
 
     # ── Watts-Strogatz DAGs (~10) ────────────────────────────────────────
+    # n=3,k=2 and n=5,k=4 are complete rings (k = n-1) — rewiring a complete
+    # graph is a no-op regardless of beta/seed, so those slots are swapped
+    # for n=4,k=2 and n=6,k=4 to keep the family non-degenerate.
     _ws: list = [
-        (3, 2, 0.3, 1), (3, 2, 0.5, 1), (3, 2, 0.3, 2),
-        (5, 2, 0.3, 1), (5, 2, 0.5, 1), (5, 4, 0.3, 1), (5, 4, 0.5, 1),
+        (3, 2, 0.3, 1), (4, 2, 0.5, 1), (4, 2, 0.3, 1),
+        (5, 2, 0.3, 1), (5, 2, 0.5, 1), (5, 4, 0.3, 1), (6, 4, 0.5, 1),
         (7, 2, 0.3, 1), (7, 4, 0.3, 1), (7, 6, 0.3, 1),
     ]
     for n, k, beta, s in _ws:
@@ -261,6 +269,15 @@ def get_all_topologies() -> Dict[str, nx.DiGraph]:
             if node == "task":
                 continue
             assert nx.has_path(G, "task", node), f"{name}: {node} unreachable from task"
+
+    by_family: Dict[str, list] = {}
+    for name, G in topos.items():
+        prefix = name.split("_")[0]
+        by_family.setdefault(prefix, []).append((name, G))
+    for members in by_family.values():
+        for (n1, g1), (n2, g2) in combinations(members, 2):
+            if g1.number_of_nodes() == g2.number_of_nodes() and g1.number_of_edges() == g2.number_of_edges():
+                assert not nx.is_isomorphic(g1, g2), f"{n1} and {n2} are isomorphic"
 
     return topos
 

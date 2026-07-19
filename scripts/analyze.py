@@ -88,9 +88,9 @@ def analyze(results: list, ks: List[int]) -> None:
     header_parts = ["metric".ljust(24)] + ["ρ".rjust(7)] + ["τ".rjust(7)]
     for k in ks:
         header_parts += [f"reg@{k}".rjust(8), f"NDCG@{k}".rjust(8)]
-    header_parts += ["n".rjust(4)]
+    header_parts += ["n".rjust(4), "total_tokens".rjust(12)]
     print("  ".join(header_parts))
-    print("-" * (24 + 10 * (2 + 2 * len(ks)) + 6))
+    print("-" * (24 + 10 * (2 + 2 * len(ks)) + 6 + 14))
 
     def _print_row(label: str, metric_vals: List[float]) -> None:
         rho = _spearman(metric_vals, accs)
@@ -102,6 +102,7 @@ def analyze(results: list, ks: List[int]) -> None:
             nd = ndcg_at_k(accs, desc_order, k)
             row += [f"{reg:.4f}".rjust(8), f"{nd:.4f}".rjust(8)]
         row.append(str(n).rjust(4))
+        row.append(str(total_tokens).rjust(12))
         print("  ".join(row))
 
     for mk in metric_keys:
