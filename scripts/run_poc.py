@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from datasets import load_dataset
 import networkx as nx
 
-from topologies.definitions import get_topologies, get_all_topologies, HYBRID_ROLES
+from topologies.definitions import get_topologies, get_all_topologies, HYBRID_ROLES, structural_roles
 from mas.agent import Agent, AgentConfig
 from mas.runner import MASRunner
 from mas.prompts import parse_answer, parse_answer_str, SYSTEM_PROMPTS
@@ -172,7 +172,7 @@ _KNOWN_ROLES = set(SYSTEM_PROMPTS.keys())
 _ROLES_CYCLE = ["solver", "critic", "aggregator"]
 
 
-def _infer_role(node: str, index: int) -> str:
+def _infer_role(node: str, index: int, struct_map: dict) -> str:
     if node == "agg":
         return "aggregator"
     if node in _KNOWN_ROLES:
@@ -180,7 +180,7 @@ def _infer_role(node: str, index: int) -> str:
     for role in _KNOWN_ROLES:
         if node.startswith(role):
             return role
-    return _ROLES_CYCLE[index % len(_ROLES_CYCLE)]
+    return struct_map.get(node, _ROLES_CYCLE[index % len(_ROLES_CYCLE)])
 
 
 def build_agents(
@@ -194,10 +194,11 @@ def build_agents(
 ) -> dict:
     order      = [n for n in nx.topological_sort(graph) if n != "task"]
     hybrid_map = HYBRID_ROLES.get(topo_name, {})
+    struct_map = structural_roles(graph)
     return {
         node: Agent(AgentConfig(
             agent_id=node,
-            role=hybrid_map.get(node) or _infer_role(node, order.index(node)),
+            role=hybrid_map.get(node) or _infer_role(node, order.index(node), struct_map),
             model=model,
             stub=stub,
             base_url=base_url,

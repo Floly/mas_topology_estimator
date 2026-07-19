@@ -13,7 +13,7 @@ Given a multi-agent system where agents communicate along a directed graph, topo
 ```
 topology_estimator/
 ├── topologies/
-│   └── definitions.py      # 18 topologies as nx.DiGraph
+│   └── definitions.py      # 48 topologies as nx.DiGraph
 ├── mas/
 │   ├── agent.py            # Agent class — stub mode + real OpenAI calls
 │   ├── runner.py           # MASRunner — topological-sort execution
@@ -30,7 +30,7 @@ topology_estimator/
 └── pyproject.toml
 ```
 
-## Topologies (18)
+## Topologies (48)
 
 **Parametric** — n ∈ {3, 5}:
 
@@ -54,6 +54,9 @@ topology_estimator/
 | `star_with_chain_backbone` | Chain + skip-connections from task to each node |
 | `two_stars_merged` | Two parallel star branches → shared aggregator |
 | `chain_of_stars` | Fan-out → fan-in → fan-out (hourglass) |
+
+Plus 30 randomly-generated DAGs (Erdős–Rényi, Barabási–Albert, Watts–Strogatz families, `n` ∈
+{3, 5, 7}) — see `topologies/definitions.py::get_all_topologies`.
 
 ## Setup
 
@@ -80,12 +83,23 @@ python scripts/run_poc.py --stub --n-questions 3
 python scripts/run_poc.py --model gpt-3.5-turbo --dataset gsm8k --n-questions 20
 ```
 
-**Real API — MATH-500 (harder, competition math)**:
+**Real API — MATH-500 (harder, competition math, optionally filtered by difficulty level)**:
 ```bash
-python scripts/run_poc.py --model gpt-4o-mini --dataset math500 --n-questions 20
+python scripts/run_poc.py --model gpt-4o-mini --dataset math500 --levels 4,5 --n-questions 20
 ```
 
-**All 18 topologies** (adds `--all-topologies`):
+**Real API — BBH logical deduction**:
+```bash
+python scripts/run_poc.py --model gpt-4o-mini --dataset bbh_logic --n-questions 20
+```
+
+**Real API — OpenAI-compatible endpoint (non-OpenAI models)**:
+```bash
+python scripts/run_poc.py --model <model-name> --base-url <endpoint-url> \
+    --api-key-env <ENV_VAR_HOLDING_KEY> --dataset gsm8k --n-questions 20
+```
+
+**All topologies (48)** (adds `--all-topologies`):
 ```bash
 python scripts/run_poc.py --model gpt-4o-mini --dataset math500 --n-questions 50 --all-topologies
 ```
@@ -117,7 +131,7 @@ Each run saves `results/run_<timestamp>.json` and updates `results/runs_index.js
 | `debater` | Solves independently, ignores other agents |
 | `judge` | Evaluates multiple solutions, selects the best |
 
-Roles are assigned by topological position (first = solver, middle = critic, last = aggregator) or via `HYBRID_ROLES` map for fixed-schema topologies. Each agent ends its response with `ANSWER: <number>`; the runner extracts the final node's answer.
+Roles are assigned by structural graph position (sources → solver, sinks → aggregator, internal nodes → critic) or via `HYBRID_ROLES` map for fixed-schema topologies. Each agent ends its response with `ANSWER: <number>`; the runner extracts the final node's answer.
 
 ## Datasets
 
