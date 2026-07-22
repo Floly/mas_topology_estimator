@@ -18,4 +18,4 @@ dataset: "gaia"          # gsm8k | math500 | hle | gpqa | gaia
 n_questions: 3
 all_topologies: false     # true = 48 topologies, false = 4 base ones
 stub: false               # true = no API calls, deterministic fake answers
-debug: false              # true = verbose per-question/per-agent logging
+debug: true              # true = verbose per-question/per-agent logging

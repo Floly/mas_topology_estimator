@@ -5,6 +5,7 @@ OpenRouter (or any OpenAI-compatible endpoint) using a YAML config.
 Usage:
     python scripts/run_openrouter.py --config configs/openrouter_run.yaml
     python scripts/run_openrouter.py --config configs/openrouter_run.yaml --stub --n-questions 2
+    python scripts/run_openrouter.py --config configs/openrouter_run.yaml --resume results/run_20260722_120000.json
 """
 import argparse
 import json
@@ -111,6 +112,25 @@ def answers_match(pred, gt) -> bool:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Incremental save / resume
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _write_run(run_doc: dict, run_file: Path, out_dir: Path) -> None:
+    """Write run_doc to run_file and mirror it to results/results.json (latest run)."""
+    text = json.dumps(run_doc, indent=2, ensure_ascii=False)
+    run_file.write_text(text)
+    (out_dir / "results.json").write_text(text)
+
+
+def _refresh_meta(run_doc: dict, results: list, status: str) -> None:
+    m = run_doc["meta"]
+    m["status"] = status
+    m["n_completed"] = len(results)
+    m["mean_accuracy"] = round(sum(r["accuracy"] for r in results) / len(results), 4) if results else 0.0
+    m["total_tokens"] = sum(r["total_tokens"] for r in results)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Agent building (ported from notebook/openrouter_run.ipynb)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -176,6 +196,7 @@ def main() -> None:
     parser.add_argument("--all-topologies", dest="all_topologies", action="store_true", default=None)
     parser.add_argument("--no-all-topologies", dest="all_topologies", action="store_false")
     parser.add_argument("--debug", action="store_true", help="force verbose per-question/per-agent logging")
+    parser.add_argument("--resume", default=None, help="path to an existing run_*.json; skips topologies already present in it")
     args = parser.parse_args()
 
     cfg = load_config(Path(args.config), args)
@@ -218,11 +239,46 @@ def main() -> None:
     metrics_engine = TopologyMetrics()
     print(f"Topologies : {len(topologies)}")
 
+    # ── resume / init run doc ───────────────────────────────────────────
+    out_dir = ROOT / "results"
+    out_dir.mkdir(exist_ok=True)
+
+    if args.resume:
+        run_file = Path(args.resume)
+        run_doc = json.loads(run_file.read_text())
+        run_id = run_doc["meta"]["run_id"]
+        results = run_doc["results"]
+        completed = {r["topology"] for r in results}
+        print(f"Resuming   : {run_id} ({len(completed)}/{len(topologies)} topologies already done)")
+    else:
+        run_ts = datetime.now(timezone.utc)
+        run_id = run_ts.strftime("%Y%m%d_%H%M%S")
+        run_file = out_dir / f"run_{run_id}.json"
+        results = []
+        completed = set()
+        run_doc = {
+            "meta": {
+                "run_id": run_id,
+                "timestamp": run_ts.isoformat(),
+                "model": cfg["model"],
+                "base_url": cfg["base_url"],
+                "dataset": cfg["dataset"],
+                "n_questions": len(questions),
+                "stub": cfg["stub"],
+                "n_topologies": len(topologies),
+                "status": "in_progress",
+            },
+            "results": results,
+        }
+
     # ── sweep ────────────────────────────────────────────────────────────
-    results = []
     failed_topologies = []
 
     for topo_name, graph in topologies.items():
+        if topo_name in completed:
+            print(f"{topo_name:30s}  skipped (already completed)")
+            continue
+
         t0 = time.perf_counter()
         agents = build_agents(graph, topo_name, cfg)
         runner = MASRunner(graph, agents)
@@ -279,42 +335,25 @@ def main() -> None:
                 "task_centrality": metrics.task_centrality,
             },
         })
+        completed.add(topo_name)
+
+        # incremental save — survives interruption/crash mid-sweep
+        _refresh_meta(run_doc, results, status="in_progress")
+        _write_run(run_doc, run_file, out_dir)
 
     print("\nDone.")
     if failed_topologies:
         print(f"Topologies with errors (post-retry): {failed_topologies}")
 
-    # ── save ─────────────────────────────────────────────────────────────
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
-
-    run_ts = datetime.now(timezone.utc)
-    run_id = run_ts.strftime("%Y%m%d_%H%M%S")
-
-    run_doc = {
-        "meta": {
-            "run_id": run_id,
-            "timestamp": run_ts.isoformat(),
-            "model": cfg["model"],
-            "base_url": cfg["base_url"],
-            "dataset": cfg["dataset"],
-            "n_questions": len(questions),
-            "stub": cfg["stub"],
-            "n_topologies": len(topologies),
-            "mean_accuracy": round(sum(r["accuracy"] for r in results) / len(results), 4) if results else 0.0,
-            "total_tokens": sum(r["total_tokens"] for r in results),
-        },
-        "results": results,
-    }
-
-    run_file = out_dir / f"run_{run_id}.json"
-    run_file.write_text(json.dumps(run_doc, indent=2, ensure_ascii=False))
-    (out_dir / "results.json").write_text(json.dumps(run_doc, indent=2, ensure_ascii=False))
+    # ── finalize ─────────────────────────────────────────────────────────
+    _refresh_meta(run_doc, results, status="done")
+    _write_run(run_doc, run_file, out_dir)
 
     index_path = out_dir / "runs_index.json"
     index = json.loads(index_path.read_text()) if index_path.exists() else []
-    index.append({**run_doc["meta"], "results_file": str(run_file)})
-    index_path.write_text(json.dumps(index, indent=2, ensure_ascii=False))
+    if not any(e.get("run_id") == run_id for e in index):
+        index.append({**run_doc["meta"], "results_file": str(run_file)})
+        index_path.write_text(json.dumps(index, indent=2, ensure_ascii=False))
 
     print(f"Run ID   : {run_id}")
     print(f"Saved    : {run_file}")
