@@ -42,13 +42,17 @@ def assign_roles(n_agents: int) -> Dict[str, str]:
     return {f"A{i}": roles[i % len(roles)] for i in range(n_agents)}
 
 
-def parse_answer(text: str) -> Optional[int]:
+def parse_answer(text: Optional[str]) -> Optional[int]:
     """Extract integer answer (GSM8K-style)."""
+    if not text:
+        return None
     m = re.search(r"ANSWER:\s*(-?\d+)", text)
     return int(m.group(1)) if m else None
 
 
-def parse_answer_str(text: str) -> Optional[str]:
+def parse_answer_str(text: Optional[str]) -> Optional[str]:
     """Extract raw answer string after 'ANSWER:' (works for any dataset)."""
+    if not text:
+        return None
     m = re.search(r"ANSWER:\s*(.+)", text, re.IGNORECASE)
     return m.group(1).strip() if m else None

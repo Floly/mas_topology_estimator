@@ -1,5 +1,7 @@
+import json
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -27,6 +29,7 @@ class Agent:
                 base_url=config.base_url,
                 api_key=os.environ.get(config.api_key_env),
             )
+            self._retryable_errors = (json.JSONDecodeError, openai.APIError)
 
     def run(self, task: str, incoming_messages: List[str]) -> str:
         if self.config.stub:
@@ -47,17 +50,36 @@ class Agent:
             temperature = self.config.temperature
         else:
             temperature = 1 if 'nano' in self.config.model else 0
-        response = self._client.chat.completions.create(
-            model=self.config.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=temperature,
-        )
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+
+        max_attempts = 4
+        response = None
+        last_error: Optional[Exception] = None
+        for attempt in range(max_attempts):
+            try:
+                response = self._client.chat.completions.create(
+                    model=self.config.model,
+                    messages=messages,
+                    temperature=temperature,
+                    timeout=60,
+                )
+                break
+            except self._retryable_errors as exc:
+                last_error = exc
+                if attempt < max_attempts - 1:
+                    time.sleep(2 ** attempt)
+        if response is None:
+            raise RuntimeError(
+                f"LLM call failed after {max_attempts} attempts "
+                f"(model={self.config.model}): {last_error}"
+            ) from last_error
+
         if response.usage:
             self.total_tokens += response.usage.prompt_tokens + response.usage.completion_tokens
-        return response.choices[0].message.content
+        return response.choices[0].message.content or ""
 
     def _stub_response(self, task: str, incoming_messages: List[str]) -> str:
         """
