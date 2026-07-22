@@ -1,0 +1,21 @@
+# Config for scripts/run_openrouter.py — mirrors notebook/openrouter_run.ipynb.
+
+# ── Provider ──────────────────────────────────────────────────────────────
+base_url: "https://openrouter.ai/api/v1"
+api_key_env: "OPENROUTER_API_KEY"
+
+# ':free' models on OpenRouter are heavily rate-limited and occasionally
+# return a truncated/invalid response (see specs/json_error.log) — retry
+# with backoff in mas/agent.py survives that, but a paid model is more
+# reliable for long sweeps (all_topologies: true, n_questions: 50+).
+# Free examples:  qwen/qwen-2.5-7b-instruct:free, meta-llama/llama-3.1-8b-instruct:free
+# Paid examples:  openai/gpt-4o-mini, anthropic/claude-haiku-4-5
+model: "poolside/laguna-xs-2.1:free"
+temperature: null  # null = auto-heuristic (mas/agent.py), or a float
+
+# ── Experiment ────────────────────────────────────────────────────────────
+dataset: "gaia"          # gsm8k | math500 | hle | gpqa | gaia
+n_questions: 3
+all_topologies: false     # true = 48 topologies, false = 4 base ones
+stub: false               # true = no API calls, deterministic fake answers
+debug: false              # true = verbose per-question/per-agent logging

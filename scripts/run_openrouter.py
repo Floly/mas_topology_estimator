@@ -137,6 +137,7 @@ def build_agents(graph, topo_name: str, cfg: dict) -> dict:
             base_url=None if cfg["stub"] else cfg["base_url"],
             api_key_env=cfg["api_key_env"],
             temperature=cfg["temperature"],
+            debug=cfg["debug"],
         ))
         for node in order
     }
@@ -158,7 +159,10 @@ def load_config(path: Path, args: argparse.Namespace) -> dict:
         cfg["all_topologies"] = args.all_topologies
     if args.model is not None:
         cfg["model"] = args.model
+    if args.debug:
+        cfg["debug"] = True
     cfg.setdefault("temperature", None)
+    cfg.setdefault("debug", False)
     return cfg
 
 
@@ -171,6 +175,7 @@ def main() -> None:
     parser.add_argument("--model", default=None)
     parser.add_argument("--all-topologies", dest="all_topologies", action="store_true", default=None)
     parser.add_argument("--no-all-topologies", dest="all_topologies", action="store_false")
+    parser.add_argument("--debug", action="store_true", help="force verbose per-question/per-agent logging")
     args = parser.parse_args()
 
     cfg = load_config(Path(args.config), args)
@@ -180,6 +185,7 @@ def main() -> None:
     print(f"base_url   : {cfg['base_url']}")
     print(f"dataset    : {cfg['dataset']}  n={cfg['n_questions']}")
     print(f"stub       : {cfg['stub']}")
+    print(f"debug      : {cfg['debug']}")
 
     # ── env / API key ────────────────────────────────────────────────────
     for p in [ROOT, ROOT.parent, Path(".").resolve()]:
@@ -226,18 +232,29 @@ def main() -> None:
         run_tokens = 0
         n_errors = 0
 
-        for item in questions:
+        for qi, item in enumerate(questions):
+            q_t0 = time.perf_counter()
             try:
                 out, q_tokens = runner.run(item["question"])
             except Exception as exc:
                 n_errors += 1
                 print(f"  [{topo_name}] question failed after retries, counting as wrong: {exc}")
                 continue
+            q_dur = time.perf_counter() - q_t0
             run_tokens += q_tokens
             pred = parse_answer_str(out)
-            if answers_match(pred, item["answer"]):
+            is_match = answers_match(pred, item["answer"])
+            if is_match:
                 correct += 1
-        
+            if cfg["debug"]:
+                q_text = item["question"].replace("\n", " ")
+                q_text = q_text[:150] + "..." if len(q_text) > 150 else q_text
+                print(
+                    f"  [debug:{topo_name}] q{qi}: {q_text}\n"
+                    f"  [debug:{topo_name}] q{qi}: pred={pred!r} gt={item['answer']!r} "
+                    f"match={is_match} tokens={q_tokens} {q_dur:.2f}s"
+                )
+
 
         acc = correct / len(questions) if questions else 0.0
         dur = round(time.perf_counter() - t0, 2)

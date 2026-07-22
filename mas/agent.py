@@ -8,6 +8,11 @@ from typing import List, Optional
 from mas.prompts import SYSTEM_PROMPTS, parse_answer
 
 
+def _trunc(s: str, n: int = 300) -> str:
+    s = s.replace("\n", " ")
+    return s if len(s) <= n else s[:n] + f"...[+{len(s) - n} chars]"
+
+
 @dataclass
 class AgentConfig:
     agent_id: str
@@ -17,6 +22,7 @@ class AgentConfig:
     base_url: Optional[str] = None
     api_key_env: str = "OPENAI_API_KEY"
     temperature: Optional[float] = None
+    debug: bool = False  # if True, print prompts/responses/retries/timing to stdout
 
 
 class Agent:
@@ -55,9 +61,17 @@ class Agent:
             {"role": "user", "content": user},
         ]
 
+        if self.config.debug:
+            print(
+                f"  [debug:{self.config.agent_id}] role={self.config.role} "
+                f"model={self.config.model} temperature={temperature}"
+            )
+            print(f"  [debug:{self.config.agent_id}] user_msg: {_trunc(user)}")
+
         max_attempts = 4
         response = None
         last_error: Optional[Exception] = None
+        t0 = time.perf_counter()
         for attempt in range(max_attempts):
             try:
                 response = self._client.chat.completions.create(
@@ -69,8 +83,13 @@ class Agent:
                 break
             except self._retryable_errors as exc:
                 last_error = exc
+                if self.config.debug:
+                    print(f"  [debug:{self.config.agent_id}] attempt {attempt + 1}/{max_attempts} failed: {exc}")
                 if attempt < max_attempts - 1:
-                    time.sleep(2 ** attempt)
+                    delay = 2 ** attempt
+                    if self.config.debug:
+                        print(f"  [debug:{self.config.agent_id}] retrying in {delay}s")
+                    time.sleep(delay)
         if response is None:
             raise RuntimeError(
                 f"LLM call failed after {max_attempts} attempts "
@@ -79,7 +98,19 @@ class Agent:
 
         if response.usage:
             self.total_tokens += response.usage.prompt_tokens + response.usage.completion_tokens
-        return response.choices[0].message.content or ""
+        content = response.choices[0].message.content or ""
+
+        if self.config.debug:
+            elapsed = time.perf_counter() - t0
+            usage = response.usage
+            tok_str = (
+                f"prompt={usage.prompt_tokens} completion={usage.completion_tokens}"
+                if usage else "usage=n/a"
+            )
+            print(f"  [debug:{self.config.agent_id}] {elapsed:.2f}s {tok_str}")
+            print(f"  [debug:{self.config.agent_id}] response: {_trunc(content)}")
+
+        return content
 
     def _stub_response(self, task: str, incoming_messages: List[str]) -> str:
         """
@@ -90,8 +121,12 @@ class Agent:
         for msg in reversed(incoming_messages):
             parsed = parse_answer(msg)
             if parsed is not None:
+                if self.config.debug:
+                    print(f"  [debug:{self.config.agent_id}] stub: echoing prior answer {parsed}")
                 return f"[stub:{self.config.agent_id}] Echoing prior answer. ANSWER: {parsed}"
 
         numbers = re.findall(r"-?\d+", task)
         fake = int(numbers[-1]) if numbers else 42
+        if self.config.debug:
+            print(f"  [debug:{self.config.agent_id}] stub: no prior answer, guessing last number {fake}")
         return f"[stub:{self.config.agent_id}] No prior answer, guessing last number. ANSWER: {fake}"
