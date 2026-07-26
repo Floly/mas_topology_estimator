@@ -9,13 +9,14 @@ api_key_env: "OPENROUTER_API_KEY"
 # with backoff in mas/agent.py survives that, but a paid model is more
 # reliable for long sweeps (all_topologies: true, n_questions: 50+).
 # Free examples:  qwen/qwen-2.5-7b-instruct:free, meta-llama/llama-3.1-8b-instruct:free
-# Paid examples:  openai/gpt-4o-mini, anthropic/claude-haiku-4-5
-model: "poolside/laguna-xs-2.1:free"
+# Paid examples:  deepseek/deepseek-v4-flash
+model: "deepseek/deepseek-v4-flash"
 temperature: null  # null = auto-heuristic (mas/agent.py), or a float
 
 # ── Experiment ────────────────────────────────────────────────────────────
-dataset: "gaia"          # gsm8k | math500 | hle | gpqa | gaia
-n_questions: 3
-all_topologies: false     # true = 48 topologies, false = 4 base ones
+dataset: "hle"          # gsm8k | math500 | hle | gpqa | gaia
+n_questions: 100
+all_topologies: true     # true = 48 topologies, false = 4 base ones
 stub: false               # true = no API calls, deterministic fake answers
-debug: true              # true = verbose per-question/per-agent logging
+debug: false              # true = verbose per-question/per-agent logging
+max_concurrency: 32       # max concurrent in-flight LLM calls per topology
