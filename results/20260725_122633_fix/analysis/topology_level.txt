@@ -1,0 +1,81 @@
+Tier 1 — topology-level (n=48 topologies)
+======================================================================
+
+Univariate correlation vs. accuracy (BH-adjusted q across the 5 metrics):
+            metric  pearson_r  pearson_p  spearman_r  spearman_p  kendall_tau  kendall_p  pearson_q_bh  spearman_q_bh
+          diameter     0.2574     0.0774      0.3298      0.0221       0.2335     0.0270        0.1290         0.0368
+        avg_degree     0.2194     0.1341      0.2260      0.1225       0.1458     0.1688        0.1677         0.1532
+structural_entropy     0.4478     0.0014      0.4210      0.0029       0.3118     0.0028        0.0071         0.0144
+      spectral_gap    -0.3568     0.0128     -0.3662      0.0105      -0.2604     0.0124        0.0320         0.0262
+   task_centrality     0.0000     1.0000      0.0000      1.0000       0.0000     1.0000        1.0000         1.0000
+
+Dropped zero-variance metrics (all topologies identical): ['task_centrality']
+
+Multivariate OLS accuracy ~ metrics (raw scale, HC3 robust SE):
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:               accuracy   R-squared:                       0.267
+Model:                            OLS   Adj. R-squared:                  0.199
+Method:                 Least Squares   F-statistic:                     2.527
+Date:                Wed, 29 Jul 2026   Prob (F-statistic):             0.0544
+Time:                        22:19:33   Log-Likelihood:                 99.619
+No. Observations:                  48   AIC:                            -189.2
+Df Residuals:                      43   BIC:                            -179.9
+Df Model:                           4                                         
+Covariance Type:                  HC3                                         
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+const                  0.1834      0.088      2.084      0.037       0.011       0.356
+diameter              -0.0208      0.053     -0.395      0.692      -0.124       0.082
+avg_degree             0.0198      0.027      0.728      0.467      -0.034       0.073
+structural_entropy     0.0199      0.027      0.744      0.457      -0.033       0.072
+spectral_gap          -0.0685      0.043     -1.611      0.107      -0.152       0.015
+==============================================================================
+Omnibus:                        8.551   Durbin-Watson:                   1.810
+Prob(Omnibus):                  0.014   Jarque-Bera (JB):                8.330
+Skew:                          -0.728   Prob(JB):                       0.0155
+Kurtosis:                       4.431   Cond. No.                         79.6
+==============================================================================
+
+Notes:
+[1] Standard Errors are heteroscedasticity robust (HC3)
+
+Multivariate OLS accuracy ~ metrics (standardized coefficients, HC3 robust SE):
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:               accuracy   R-squared:                       0.267
+Model:                            OLS   Adj. R-squared:                  0.199
+Method:                 Least Squares   F-statistic:                     2.527
+Date:                Wed, 29 Jul 2026   Prob (F-statistic):             0.0544
+Time:                        22:19:33   Log-Likelihood:                 99.619
+No. Observations:                  48   AIC:                            -189.2
+Df Residuals:                      43   BIC:                            -179.9
+Df Model:                           4                                         
+Covariance Type:                  HC3                                         
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+const                  0.1821      0.005     37.452      0.000       0.173       0.192
+diameter              -0.0055      0.014     -0.395      0.692      -0.033       0.022
+avg_degree             0.0077      0.011      0.728      0.467      -0.013       0.028
+structural_entropy     0.0073      0.010      0.744      0.457      -0.012       0.026
+spectral_gap          -0.0167      0.010     -1.611      0.107      -0.037       0.004
+==============================================================================
+Omnibus:                        8.551   Durbin-Watson:                   1.810
+Prob(Omnibus):                  0.014   Jarque-Bera (JB):                8.330
+Skew:                          -0.728   Prob(JB):                       0.0155
+Kurtosis:                       4.431   Cond. No.                         6.15
+==============================================================================
+
+Notes:
+[1] Standard Errors are heteroscedasticity robust (HC3)
+
+Variance Inflation Factor (VIF > 5 suggests notable multicollinearity):
+            metric   VIF
+          diameter 8.699
+        avg_degree 4.962
+structural_entropy 5.204
+      spectral_gap 4.238
+
+Metrics surviving BH correction at q<0.05 (Pearson): ['structural_entropy', 'spectral_gap']

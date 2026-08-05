@@ -1,0 +1,73 @@
+Tier 2 — question-level panel (n=4800 = topologies x questions)
+======================================================================
+
+Dropped zero-variance metrics: ['task_centrality']
+
+match=1 rate: 0.1821
+
+Logit match ~ metrics, SEs clustered by topology:
+                           Logit Regression Results                           
+==============================================================================
+Dep. Variable:                  match   No. Observations:                 4800
+Model:                          Logit   Df Residuals:                     4795
+Method:                           MLE   Df Model:                            4
+Date:                Wed, 29 Jul 2026   Pseudo R-squ.:                0.002390
+Time:                        22:19:33   Log-Likelihood:                -2272.3
+converged:                       True   LL-Null:                       -2277.8
+Covariance Type:              cluster   LLR p-value:                   0.02785
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+const                 -1.4794      0.526     -2.812      0.005      -2.510      -0.448
+diameter              -0.1485      0.268     -0.554      0.579      -0.674       0.377
+avg_degree             0.1278      0.130      0.984      0.325      -0.127       0.382
+structural_entropy     0.1375      0.131      1.051      0.293      -0.119       0.394
+spectral_gap          -0.4718      0.267     -1.766      0.077      -0.995       0.052
+======================================================================================
+
+McFadden pseudo-R^2: 0.0024
+
+Odds ratios:
+const                 0.2278
+diameter              0.8620
+avg_degree            1.1363
+structural_entropy    1.1473
+spectral_gap          0.6239
+
+Marginal effects:
+        Logit Marginal Effects       
+=====================================
+Dep. Variable:                  match
+Method:                          dydx
+At:                           overall
+======================================================================================
+                        dy/dx    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+diameter              -0.0221      0.040     -0.552      0.581      -0.100       0.056
+avg_degree             0.0190      0.019      0.992      0.321      -0.019       0.057
+structural_entropy     0.0204      0.020      1.047      0.295      -0.018       0.059
+spectral_gap          -0.0701      0.040     -1.768      0.077      -0.148       0.008
+======================================================================================
+
+BH-adjusted p-values (metric coefficients only):
+diameter              0.5794
+avg_degree            0.4332
+structural_entropy    0.4332
+spectral_gap          0.3093
+
+Metrics surviving BH correction at q<0.05: none
+
+Logit match ~ metrics + C(qi) question fixed effects, SEs clustered by topology:
+(isolates the within-question effect of topology structure on correctness;
+ question dummies not printed individually — only metric rows matter here)
+
+                        Coef.  Std.Err.  ...     [0.025     0.975]
+diameter            -0.270601  0.519382  ...  -1.288570   0.747368
+avg_degree           0.250017  0.256188  ...  -0.252101   0.752135
+structural_entropy   0.255865  0.255998  ...  -0.245882   0.757611
+spectral_gap        -0.881446  0.498681  ...  -1.858842   0.095951
+const              -19.530080  3.522217  ... -26.433499 -12.626662
+
+[5 rows x 6 columns]
+
+McFadden pseudo-R^2 (with FE): 0.4863
