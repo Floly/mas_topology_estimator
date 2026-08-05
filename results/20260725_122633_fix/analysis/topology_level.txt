@@ -11,14 +11,88 @@ structural_entropy     0.4478     0.0014      0.4210      0.0029       0.3118   
 
 Dropped zero-variance metrics (all topologies identical): ['task_centrality']
 
+Size control (does structure explain anything beyond n_agents?):
+======================================================================
+
+Metric correlations with n_agents:
+            metric  pearson_r_vs_n  pearson_p_vs_n  spearman_r_vs_n  spearman_p_vs_n
+          diameter          0.5174          0.0002           0.5441           0.0001
+        avg_degree          0.4177          0.0031           0.5223           0.0001
+structural_entropy          0.9812          0.0000           0.9811           0.0000
+      spectral_gap         -0.4866          0.0005          -0.5212           0.0001
+   task_centrality          0.0000          1.0000           0.0000           1.0000
+
+WARNING: structural_entropy is a size proxy (r=0.98 with n_agents)
+
+n_agents baseline correlation with accuracy (outside the BH family):
+             metric  pearson_r  pearson_p  spearman_r  spearman_p  kendall_tau  kendall_p
+n_agents [baseline]     0.4531     0.0012      0.4253      0.0026       0.3304      0.003
+
+Partial correlations with accuracy, controlling for n_agents (BH-adjusted q across the 5 metrics, column partial_q_bh):
+            metric  partial_pearson_r  partial_pearson_p  partial_spearman_r  partial_spearman_p  partial_q_bh
+          diameter             0.0301             0.8409              0.1295              0.3856           1.0
+        avg_degree             0.0372             0.8042              0.0049              0.9739           1.0
+structural_entropy             0.0184             0.9023              0.0213              0.8873           1.0
+      spectral_gap            -0.1750             0.2393             -0.1872              0.2078           1.0
+   task_centrality             0.0000             1.0000              0.0000              1.0000           1.0
+
+Metrics surviving BH correction on partial correlations at q<0.05: none
+
+Nested OLS models (HC3 robust SE):
+  M0: accuracy ~ n_agents            R^2=0.2053  adj.R^2=0.1881  AIC=-191.36
+  M1: accuracy ~ metrics             R^2=0.2670  adj.R^2=0.1988  AIC=-189.24
+  M2: accuracy ~ n_agents + metrics  R^2=0.2719  adj.R^2=0.1852  AIC=-187.56
+
+Delta R^2 (M2 - M0, i.e. structure on top of size alone): 0.0665
+Wald F-test: all metric coefficients in M2 == 0  F(4, 42)=0.7801  p=0.5445
+(this is the central test: does structure explain anything beyond size?)
+
+VIF with n_agents included (compare to the metrics-only VIF table below — structural_entropy is expected to blow up):
+            metric    VIF
+          diameter  8.960
+        avg_degree  4.997
+structural_entropy 29.593
+      spectral_gap  4.255
+          n_agents 28.230
+
+Orthogonalized variant (--orthogonalize): each metric replaced by its residual off n_agents, M1 refit on the residuals:
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:               accuracy   R-squared:                       0.067
+Model:                            OLS   Adj. R-squared:                 -0.020
+Method:                 Least Squares   F-statistic:                    0.8338
+Date:                Wed, 05 Aug 2026   Prob (F-statistic):              0.511
+Time:                        20:51:38   Log-Likelihood:                 93.818
+No. Observations:                  48   AIC:                            -177.6
+Df Residuals:                      43   BIC:                            -168.3
+Df Model:                           4                                         
+Covariance Type:                  HC3                                         
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+const                  0.1821      0.005     33.596      0.000       0.171       0.193
+diameter              -0.0256      0.056     -0.461      0.645      -0.135       0.083
+avg_degree             0.0186      0.024      0.779      0.436      -0.028       0.066
+structural_entropy    -0.0136      0.089     -0.154      0.878      -0.187       0.160
+spectral_gap          -0.0698      0.045     -1.568      0.117      -0.157       0.017
+==============================================================================
+Omnibus:                       12.154   Durbin-Watson:                   1.604
+Prob(Omnibus):                  0.002   Jarque-Bera (JB):               14.187
+Skew:                          -0.904   Prob(JB):                     0.000831
+Kurtosis:                       4.956   Cond. No.                         15.3
+==============================================================================
+
+Notes:
+[1] Standard Errors are heteroscedasticity robust (HC3)
+
 Multivariate OLS accuracy ~ metrics (raw scale, HC3 robust SE):
                             OLS Regression Results                            
 ==============================================================================
 Dep. Variable:               accuracy   R-squared:                       0.267
 Model:                            OLS   Adj. R-squared:                  0.199
 Method:                 Least Squares   F-statistic:                     2.527
-Date:                Wed, 29 Jul 2026   Prob (F-statistic):             0.0544
-Time:                        22:19:33   Log-Likelihood:                 99.619
+Date:                Wed, 05 Aug 2026   Prob (F-statistic):             0.0544
+Time:                        20:51:38   Log-Likelihood:                 99.619
 No. Observations:                  48   AIC:                            -189.2
 Df Residuals:                      43   BIC:                            -179.9
 Df Model:                           4                                         
@@ -47,8 +121,8 @@ Multivariate OLS accuracy ~ metrics (standardized coefficients, HC3 robust SE):
 Dep. Variable:               accuracy   R-squared:                       0.267
 Model:                            OLS   Adj. R-squared:                  0.199
 Method:                 Least Squares   F-statistic:                     2.527
-Date:                Wed, 29 Jul 2026   Prob (F-statistic):             0.0544
-Time:                        22:19:33   Log-Likelihood:                 99.619
+Date:                Wed, 05 Aug 2026   Prob (F-statistic):             0.0544
+Time:                        20:51:38   Log-Likelihood:                 99.619
 No. Observations:                  48   AIC:                            -189.2
 Df Residuals:                      43   BIC:                            -179.9
 Df Model:                           4                                         

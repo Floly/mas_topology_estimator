@@ -11,8 +11,8 @@ Logit match ~ metrics, SEs clustered by topology:
 Dep. Variable:                  match   No. Observations:                 4800
 Model:                          Logit   Df Residuals:                     4795
 Method:                           MLE   Df Model:                            4
-Date:                Wed, 29 Jul 2026   Pseudo R-squ.:                0.002390
-Time:                        22:19:33   Log-Likelihood:                -2272.3
+Date:                Wed, 05 Aug 2026   Pseudo R-squ.:                0.002390
+Time:                        20:51:38   Log-Likelihood:                -2272.3
 converged:                       True   LL-Null:                       -2277.8
 Covariance Type:              cluster   LLR p-value:                   0.02785
 ======================================================================================
@@ -61,13 +61,61 @@ Logit match ~ metrics + C(qi) question fixed effects, SEs clustered by topology:
 (isolates the within-question effect of topology structure on correctness;
  question dummies not printed individually — only metric rows matter here)
 
-                        Coef.  Std.Err.  ...     [0.025     0.975]
-diameter            -0.270601  0.519382  ...  -1.288570   0.747368
-avg_degree           0.250017  0.256188  ...  -0.252101   0.752135
-structural_entropy   0.255865  0.255998  ...  -0.245882   0.757611
-spectral_gap        -0.881446  0.498681  ...  -1.858842   0.095951
-const              -19.530080  3.522217  ... -26.433499 -12.626662
+                        Coef.     Std.Err.  ...        [0.025        0.975]
+diameter            -0.270601     0.519384  ...     -1.288575      0.747372
+avg_degree           0.250017     0.256187  ...     -0.252100      0.752134
+structural_entropy   0.255865     0.255998  ...     -0.245882      0.757612
+spectral_gap        -0.881446     0.498682  ...     -1.858844      0.095953
+const              -27.648507  6704.249624  ... -13167.736313  13112.439299
 
 [5 rows x 6 columns]
 
 McFadden pseudo-R^2 (with FE): 0.4863
+
+Size-controlled specifications (controls=['n_agents']):
+======================================================================
+
+Logit match ~ metrics + ['n_agents'], SEs clustered by topology:
+                           Logit Regression Results                           
+==============================================================================
+Dep. Variable:                  match   No. Observations:                 4800
+Model:                          Logit   Df Residuals:                     4794
+Method:                           MLE   Df Model:                            5
+Date:                Wed, 05 Aug 2026   Pseudo R-squ.:                0.002426
+Time:                        20:51:42   Log-Likelihood:                -2272.3
+converged:                       True   LL-Null:                       -2277.8
+Covariance Type:              cluster   LLR p-value:                   0.05036
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+const                 -1.1658      0.699     -1.667      0.095      -2.536       0.205
+diameter              -0.1777      0.241     -0.737      0.461      -0.650       0.295
+avg_degree             0.1204      0.123      0.980      0.327      -0.120       0.361
+structural_entropy    -0.0671      0.443     -0.152      0.880      -0.935       0.801
+spectral_gap          -0.4806      0.267     -1.801      0.072      -1.004       0.043
+n_agents               0.0499      0.093      0.539      0.590      -0.132       0.231
+======================================================================================
+
+McFadden pseudo-R^2 (with ['n_agents'] control): 0.0024
+
+BH-adjusted p-values (metric coefficients only, control excluded):
+diameter              0.6148
+avg_degree            0.6148
+structural_entropy    0.8796
+spectral_gap          0.2871
+
+Metrics surviving BH correction at q<0.05 (size-controlled): none
+
+Logit match ~ metrics + ['n_agents'] + C(qi) fixed effects, SEs clustered by topology:
+                        Coef.  Std.Err.         z     P>|z|    [0.025    0.975]
+diameter            -0.330080  0.463285 -0.712478  0.476169 -1.238102  0.577941
+avg_degree           0.235298  0.241258  0.975295  0.329414 -0.237560  0.708155
+structural_entropy  -0.160268  0.858129 -0.186764  0.851846 -1.842170  1.521635
+spectral_gap        -0.898601  0.499656 -1.798440  0.072107 -1.877909  0.080706
+n_agents             0.101939  0.180784  0.563872  0.572841 -0.252391  0.456269
+const              -22.945160       NaN       NaN       NaN       NaN       NaN
+
+McFadden pseudo-R^2 (FE + ['n_agents'] control): 0.4863
+
+Delta McFadden pseudo-R^2 (no-FE, control - baseline): 0.0000
+Delta McFadden pseudo-R^2 (FE, control - baseline): 0.0001
